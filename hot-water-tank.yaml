@@ -1,0 +1,64 @@
+esphome:
+  name: hot-water-tank
+
+esp8266:
+  board: nodemcuv2
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+
+ota:
+  password: "611ac383a6a3e5db27b65d7ab0ef6664"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Hot-Water-Tank Fallback Hotspot"
+    password: "System_2010"
+
+captive_portal:
+
+switch:
+  - platform: gpio
+    name: "Hot Water Tank"
+    id: sw_hot_water_tank
+    pin: D1
+
+dallas:
+  - pin: D2
+
+sensor:
+  - platform: dallas
+    address: 0x0302119177b97028
+    name: "Hot Water Tank Top Temperature"
+  - platform: dallas
+    address: 0x98020b9177430e28
+    name: "Hot Water Tank Bottom Temperature"
+
+time:
+  - platform: homeassistant
+    id: homeassistant_time
+    on_time:
+      # Cron syntax, at every 7th minute past every hour from 0 through 6 and 23.
+      - cron: '* /7 0-6,23 * * *'
+        then:
+          - if:
+              condition:
+                switch.is_off: sw_hot_water_tank
+              then:
+                - switch.turn_on: sw_hot_water_tank
+
+      # 6:58:00
+      - seconds: 0
+        minutes: 58
+        hours: 6
+        then:
+          - switch.turn_off: sw_hot_water_tank
+
+

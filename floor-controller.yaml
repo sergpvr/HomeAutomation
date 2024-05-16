@@ -1,0 +1,169 @@
+esphome:
+  name: floor-controller
+
+esp8266:
+  board: nodemcuv2
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "jtkTgjPDuYufC+iPS4VMeqUAwyNqcqQAlUrILjWTJRQ="
+
+ota:
+  password: "fd89026658921c355b363b65ad4ce311"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Floor-Controller"
+    password: "y8HxH629k325"
+
+captive_portal:
+
+dallas:
+  - pin: D2
+
+switch:
+# Floor 1
+  - platform: gpio
+    pin: D1
+    id: sw_increase_temp_floor1
+    interlock: [sw_decrease_temp_floor1]
+    interlock_wait_time : 500ms
+
+  - platform: gpio
+    pin: D3
+    id: sw_decrease_temp_floor1
+    interlock: [sw_increase_temp_floor1]
+    interlock_wait_time : 500ms
+ 
+  - platform: gpio
+    pin: D4
+    name: "Pump Floor 1"
+    id: sw_pump_floor1
+
+# Floor 2
+  - platform: gpio
+    pin: D5
+    id: sw_increase_temp_floor2
+    interlock: [sw_decrease_temp_floor2]
+    interlock_wait_time : 500ms
+
+  - platform: gpio
+    pin: D6
+    id: sw_decrease_temp_floor2
+    interlock: [sw_increase_temp_floor2]
+    interlock_wait_time : 500ms
+ 
+  - platform: gpio
+    pin: D7
+    name: "Pump Floor 2"
+    id: sw_pump_floor2
+
+number:
+  - platform : template
+    device_class: TEMPERATURE
+    name: "First floor temperature"
+    id: floor1_temp_required
+    optimistic: true
+    mode: auto #box #slider
+    min_value: 26.0
+    max_value: 33.0
+    step: 1.0
+    initial_value: 28.0
+
+  - platform : template
+    device_class: TEMPERATURE
+    name: "Second floor temperature"
+    id: floor2_temp_required
+    optimistic: true
+    mode: auto #box #slider
+    min_value: 26.0
+    max_value: 33.0
+    step: 1.0
+    initial_value: 28.0
+
+time:
+  - platform: homeassistant
+    id: homeassistant_time
+    on_time:
+      # Every 30 minutes
+      - seconds: 0
+        minutes: /30
+        then:
+          - if:
+              condition:
+                switch.is_off: sw_pump_floor1
+              then:
+                - switch.turn_on: sw_pump_floor1
+          - if:
+              condition:
+                switch.is_off: sw_pump_floor2
+              then:
+                - switch.turn_on: sw_pump_floor2
+
+script:
+  - id: increase_temp_floor1
+    then:
+      - script.stop: decrease_temp_floor1
+      - switch.turn_off: sw_decrease_temp_floor1
+      - delay: 500ms
+      - switch.turn_on: sw_increase_temp_floor1
+      - delay: 160s
+      - switch.turn_off: sw_increase_temp_floor1
+      - logger.log: "Can't to increase_temp_floor1"
+      - switch.turn_off: sw_pump_floor1
+
+  - id: decrease_temp_floor1
+    then:
+      - script.stop: increase_temp_floor1
+      - switch.turn_off: sw_increase_temp_floor1
+      - delay: 500ms
+      - switch.turn_on: sw_decrease_temp_floor1
+      - delay: 160s
+      - switch.turn_off: sw_decrease_temp_floor1
+      - logger.log: "Can't to decrease_temp_floor1"
+      - switch.turn_off: sw_pump_floor1
+      
+  - id: keep_temp_floor1
+    then:
+      - script.stop: increase_temp_floor1
+      - script.stop: decrease_temp_floor1
+      - switch.turn_off: sw_increase_temp_floor1
+      - switch.turn_off: sw_decrease_temp_floor1
+
+  - id: increase_temp_floor2
+    then:
+      - script.stop: decrease_temp_floor2
+      - switch.turn_off: sw_decrease_temp_floor2
+      - delay: 500ms
+      - switch.turn_on: sw_increase_temp_floor2
+      - delay: 160s
+      - switch.turn_off: sw_increase_temp_floor2
+      - logger.log: "Can't to increase_temp_floor2"
+      - switch.turn_off: sw_pump_floor2
+
+  - id: decrease_temp_floor2
+    then:
+      - script.stop: increase_temp_floor2
+      - switch.turn_off: sw_increase_temp_floor2
+      - delay: 500ms
+      - switch.turn_on: sw_decrease_temp_floor2
+      - delay: 160s
+      - switch.turn_off: sw_decrease_temp_floor2
+      - logger.log: "Can't to decrease_temp_floor2"
+      - switch.turn_off: sw_pump_floor2
+     
+  - id: keep_temp_floor2
+    then:
+      - script.stop: increase_temp_floor2
+      - script.stop: decrease_temp_floor2
+      - switch.turn_off: sw_increase_temp_floor2
+      - switch.turn_off: sw_decrease_temp_floor2
+
